@@ -1,0 +1,215 @@
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <sstream>
+#include <vector>
+#include <cstdlib>
+#include <ctime>
+#include <algorithm>
+#include <iomanip>
+using namespace std;
+// 生成随机矩阵
+vector<vector<int>> generateMatrix(float ratio){
+    srand(time(0));
+    vector<vector<int>>matrix(4, vector<int>(4, 0));
+    int count = static_cast<int>(16*ratio);
+    while(count--){
+        int i, j;
+        do{
+            i = rand() % 4;
+            j = rand() % 4;
+        }while(matrix[i][j]!= 0);
+        matrix[i][j]=1 << (rand() % 20);
+    }
+    return matrix;
+}
+
+// 打印矩阵
+void printMatrix(const vector<vector<int>>& matrix, bool box) {
+    int size = matrix.size();
+    int maxLen = 0;
+    for (const auto& row : matrix) {
+        for (const auto& elem : row) {
+            maxLen = max(maxLen, static_cast<int>(to_string(elem).length()));
+        }
+    }
+
+    string border = "+";
+    for (int i = 0; i < maxLen; ++i) {
+        border += "-";
+    }
+
+    for (const auto& row : matrix) {
+        if (box) {
+            for (int i = 0; i < size; ++i) {
+                cout << border;
+            }
+            cout << "+" << "\n";
+        }
+        for (const auto& elem : row) {
+            cout << "| " << setw(maxLen - 1) << right << elem;
+        }
+        if (box) {
+            cout << "|";
+        }
+        cout << '\n';
+    }
+    if (box) {
+        for (int i = 0; i < size; ++i) {
+            cout << border;
+        }
+        cout << "+" << "\n";
+    }
+}
+
+void melt(std::vector<std::vector<int>>& matrix){
+    for(int j =0; j < 4; ++j){
+        std::vector<int>column;
+        for(int i = 0; i < 4; ++i){
+            if(matrix[i][j] !=0){
+                column.push_back(matrix[i][j]);
+            }
+        }
+        column.resize(4);
+        for(int i = 0; i < 3; ++i){
+            if(column[i] ==column[i +1]){
+                column[i] = 0;
+                column[i +1] *= 2;
+            }
+        }
+        std::sort(column.begin(), column.end());
+        for(int i = 0; i < 4; ++i){
+            matrix[i][j] =column[i];
+        }
+    }
+    int i, j;
+    do{
+        i =std::rand() %4;
+        j =std::rand() %4;
+    }while(matrix[i][j] !=0);
+    matrix[i][j] = (std::rand() %2+1) *2;
+}
+
+// 压缩矩阵
+void compressMatrix(vector<vector<int>>& matrix, const string& direction) {
+    if (direction == "left" || direction == "right") {
+        for (auto& row : matrix) {
+            int sum = 0;
+            for (auto& elem : row) {
+                sum += elem;
+                elem = 0;
+            }
+            if (direction == "right") {
+                row.back() = sum;
+            } else {
+                row.front() = sum;
+            }
+        }
+    } else {
+        for (int j = 0; j < 4; ++j) {
+            int sum = 0;
+            for (int i = 0; i < 4; ++i) {
+                sum += matrix[i][j];
+                matrix[i][j] = 0;
+            }
+            if (direction == "down") {
+                matrix.back()[j] = sum;
+            } else {
+                matrix.front()[j] = sum;
+            }
+        }
+    }
+}
+
+// 旋转矩阵
+void rotateMatrix(vector<vector<int>>& matrix) {
+    vector<vector<int>> rotated(4, vector<int>(4));
+    for (int i = 0; i < 4; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            rotated[j][3 - i] = matrix[i][j];
+        }
+    }
+    matrix = rotated;
+}
+
+bool getBoxConfig() {
+    ifstream config("config.txt");
+    if (!config) {
+        cout << "Unable to open configuration file\n";
+        return false;
+    }
+
+    string line;
+    string value;
+    while (getline(config, line)) {
+        if (line.empty() || line[0] == '#') {
+            continue;
+        }
+        istringstream iss(line);
+        string configKey, eq;
+        string configValue;
+        if (iss >> configKey >> eq >> configValue && configKey == "BOX" && eq == "=") {
+            value = configValue;
+        }
+    }
+
+    config.close();
+
+    return value == "TRUE";
+}
+
+int getConfigValue(const string& key) {
+    ifstream config("config.txt");
+    if (!config) {
+        cout << "Unable to open configuration file\n";
+        return -1;
+    }
+
+    string line;
+    int value = -1;
+    while (getline(config, line)) {
+        if (line.empty() || line[0] == '#') {
+            continue;
+        }
+        istringstream iss(line);
+        string configKey, eq;
+        int configValue;
+        if (iss >> configKey >> eq >> configValue && configKey == key && eq == "=") {
+            value = configValue;
+        }
+    }
+    config.close();
+    return value;
+}
+
+int main() {
+    int size = getConfigValue("SIZE");
+    if (size <= 0) {
+        cout << "配置文件格式不对\n";
+        size = 4;
+    }
+
+    int ratio = getConfigValue("RAND");
+    if (ratio < 0 || ratio >= 100) {
+        cout << "配置文件格式不对\n";
+        ratio = 0;
+    }
+    vector<vector<int>>matrix = generateMatrix(ratio);
+    string operation, direction;
+    cout << "Enter operation (compress or rotate) and direction (left, right, up, down):\n";
+    cin >> operation >> direction;
+
+    if (operation == "compress") {
+        compressMatrix(matrix, direction);
+    } else if (operation == "rotate") {
+        rotateMatrix(matrix);
+    } else if (operation == "melt"){
+        melt(matrix);
+    }
+
+    cout << "Result matrix:\n";
+    bool box = getBoxConfig();
+    printMatrix(matrix, box);
+
+    return 0;
+}
